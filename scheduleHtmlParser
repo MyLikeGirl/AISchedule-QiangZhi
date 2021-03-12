@@ -1,65 +1,143 @@
+ function getWeeks(weekStr){
+        //6-8周双,9-14周
+        //6-8双,9-14
+        //第6周
+    //   weekss =  weekStr.replace(/第|周/g,"").split(',').filter(function (s) {return s && s.trim();});;
+      weekss =  weekStr.replace(/第|\(|\)/g,"")
+       let week1 = []
+       while(weekss.search(/周/) != -1){
+            week1.push(weekss.slice(0,weekss.search(/周/)+1).replace("周",""));
+            if(weekss[weekss.search(/周/)+1] == undefined){
+                weekss = "";
+           }
+            else if(weekss[weekss.search(/周/)+1].search(/\d/) != -1){
+                weekss = weekss.slice(weekss.search(/周/)+1)
+            }
+             else{
+                 weekss = weekss.slice(weekss.search(/周/)+2)
+             }
+       }
+       week1.push(weekss)
+       let reweek = [];
+       week1.filter(function (s) {return s && s.trim();}).forEach(v =>{
+
+           if(v.substring(v.length-1)== "双"){
+               
+               v.substring(0,v.length-1).split(',').forEach(w =>{
+                    let tt = w.split('-').filter(function (s) {return s && s.trim();});
+                   for(let z =  Number(tt[0]) ; z <= tt[tt.length-1] ; z++){
+                    if(z%2==0){reweek.push(z)};
+               }
+               })               
+           } 
+           else if(v.substring(v.length-1)== "单"){
+                    v.substring(0,v.length-1).split(',').forEach(w =>{
+                    let tt = w.split('-').filter(function (s) {return s && s.trim();});
+                   for(let z =  Number(tt[0]) ; z <= tt[tt.length-1] ; z++){
+                    if(z%2!=0){reweek.push(z)};
+               }
+               })     
+           } 
+           else{
+               v.split(',').forEach(w =>{
+                    let tt = w.split('-').filter(function (s) {return s && s.trim();});               
+                   for(let z =  Number(tt[0]) ; z <= tt[tt.length-1] ; z++){                  
+                   reweek.push(z);
+               }
+               })     
+           }
+       });
+       return reweek;
+    }
+    
+    
 function scheduleHtmlParser(html) {
     //除函数名外都可编辑
     //传入的参数为上一步函数获取到的html
     //可使用正则匹配
     //可使用解析dom匹配，工具内置了$，跟jquery使用方法一样，直接用就可以了，参考：https://juejin.im/post/5ea131f76fb9a03c8122d6b9
     //以下为示例，您可以完全重写或在此基础上更改
+
+    let $ = cheerio.load(html, {decodeEntities: false});
     let result = []
-    let hang = $('#kbtable tbody tr')
-    for (let i = 1 ; i< hang.length - 1;i++){
-       
+    let hang = $('#kbtable tr')
+    for (let i = 1 ; i< hang.length-1 ;i++){
+
         let lie = $('td',hang.eq(i));
-        for (let j = 0 ; j< hang.length - 1;j++){
-            let kc = $('div[style!="display: none;"]',lie.eq(j));
-               if (kc.text().length==6){
-                 continue;
+        for (let j = 0 ; j< lie.length;j++){
+            let kc = lie.eq(j).children('div[style!="display: none;"]');
+             if (kc.text().length<=6){
+                   continue;
              }
-            let kcco = kc.text().split(/-{2,}/);
+              let kcco = kc.html().split(/-{2,}/);
             for (let k = 0 ; k< kcco.length ; k++){
                  let re = {weeks:[],sections:[]} ; 
-                  re.name = kcco[k].split('(讲课学时)')[0];
+
+                  re.name = kcco[k].replace(/<[^>]+>/g,"?").split('?').filter(function (s) {return s && s.trim();})[0];
+                  re.name = re.name.length < 50 ? re.name : re.name.substring(0,46)+"...";
                   re.position = kc.find('font[title="教室"]').eq(k).text();
                   re.teacher = kc.find('font[title="老师"]').eq(k).text();
+                  re.teacher = re.teacher.length < 50 ? re.teacher : re.teacher.substring(0,46)+"...";
+                   re.weeks = getWeeks(kc.find('font[title="周次(节次)"]').eq(k).text());
                   re.day = j+1;
                    for (jie = i*2-1; jie <= i*2; jie++){
                        let sec = {};
                        sec.section = jie;
                        re.sections.push(sec);
                    }
-             
-               let zc = kc.find('font[title="周次(节次)"]').eq(k).text();
-                let zcarr = zc.split(/\(|,|\)/).filter(function (s) {return s && s.trim();});
-                   console.log(zcarr)
-                if (zcarr[zcarr.length-1] == '周'){
-                    for(let zr = 0 ;zr <zcarr.length-1 ;zr++){
-                        for (let zb = Number(zcarr[zr].split('-')[0]) ; zb <= zcarr[zr].split('-')[1] ; zb++){
-                          re.weeks.push(zb);  
-                        }
-                    }
-                }
-                else if (zcarr[zcarr.length-1] == '单周'){
-                    for(let zr = 0 ;zr <zcarr.length-1 ;zr++){
-                        for (let zb = Number(zcarr[zr].split('-')[0]) ; zb <= zcarr[zr].split('-')[1] ; zb++){
-                          if(zb % 2 != 0 ){
-                              re.weeks.push(zb);
-                          }  
-                        }
-                    }
-                }   
-                 else if (zcarr[zcarr.length-1] == '双周'){
-                    for(let zr = 0 ;zr <zcarr.length-1 ;zr++){
-                        for (let zb = Number(zcarr[zr].split('-')[0]) ; zb <= zcarr[zr].split('-')[1] ; zb++){
-                          if(zb % 2 == 0 ){
-                              re.weeks.push(zb);
-                          }  
-                        }
-                    }
-                } 
-                result.push(re);
+                    result.push(re);
+            }
+               
             }    
         }
+    let sects = [{
+        section:1,
+        startTime:'08:00',
+        endTime:'08:50'
+    },
+    {
+        section:2,
+        startTime:'09:00',
+        endTime:'09:50'
+    },{
+        section:3,
+        startTime:'10:10',
+        endTime:'11:00'
+    },{
+        section:4,
+        startTime:'11:10',
+        endTime:'12:00'
+    },{
+        section:5,
+        startTime:'14:00',
+        endTime:'14:50'
+    },{
+        section:6,
+        startTime:'15:00',
+        endTime:'15:50'
+    },{
+        section:7,
+        startTime:'16:10',
+        endTime:'17:00'
+    },{
+        section:8,
+        startTime:'17:10',
+        endTime:'18:00'
+    },
+    {
+        section:9,
+        startTime:'19:00',
+        endTime:'19:50'
+    },{
+        section:10,
+        startTime:'20:00',
+        endTime:'20:50'
     }
+    ]
+
     
     console.log(result)
-    return { courseInfos: result }
+    return { courseInfos: result,
+            sectionTimes: sects
+     }
 }
