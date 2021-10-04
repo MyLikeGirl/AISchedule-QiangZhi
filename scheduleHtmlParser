@@ -1,54 +1,152 @@
- function getWeeks(weekStr){
-        //6-8周双,9-14周
-        //6-8双,9-14
-        //第6周
-    //   weekss =  weekStr.replace(/第|周/g,"").split(',').filter(function (s) {return s && s.trim();});;
-      weekss =  weekStr.replace(/第|\(|\)/g,"")
-       let week1 = []
-       while(weekss.search(/周/) != -1){
-            week1.push(weekss.slice(0,weekss.search(/周/)+1).replace("周",""));
-            if(weekss[weekss.search(/周/)+1] == undefined){
-                weekss = "";
-           }
-            else if(weekss[weekss.search(/周/)+1].search(/\d/) != -1){
-                weekss = weekss.slice(weekss.search(/周/)+1)
-            }
-             else{
-                 weekss = weekss.slice(weekss.search(/周/)+2)
-             }
-       }
-       week1.push(weekss)
-       let reweek = [];
-       week1.filter(function (s) {return s && s.trim();}).forEach(v =>{
-
-           if(v.substring(v.length-1)== "双"){
-               
-               v.substring(0,v.length-1).split(',').forEach(w =>{
-                    let tt = w.split('-').filter(function (s) {return s && s.trim();});
-                   for(let z =  Number(tt[0]) ; z <= tt[tt.length-1] ; z++){
-                    if(z%2==0){reweek.push(z)};
-               }
-               })               
-           } 
-           else if(v.substring(v.length-1)== "单"){
-                    v.substring(0,v.length-1).split(',').forEach(w =>{
-                    let tt = w.split('-').filter(function (s) {return s && s.trim();});
-                   for(let z =  Number(tt[0]) ; z <= tt[tt.length-1] ; z++){
-                    if(z%2!=0){reweek.push(z)};
-               }
-               })     
-           } 
-           else{
-               v.split(',').forEach(w =>{
-                    let tt = w.split('-').filter(function (s) {return s && s.trim();});               
-                   for(let z =  Number(tt[0]) ; z <= tt[tt.length-1] ; z++){                  
-                   reweek.push(z);
-               }
-               })     
-           }
-       });
-       return reweek;
+function getWeeks(Str) {
+    function range(con, tag) {
+        let retWeek=[]
+        con.slice(0, -1).split(',').forEach(w => {
+            let tt = w.split('-')
+            let start = parseInt(tt[0])
+            let end = parseInt(tt[tt.length - 1])
+            if (tag == 1 || tag == 2)    retWeek.push(...Array(end + 1 - start).fill(start).map((x, y) => x + y).filter(f=>{return f%tag==0}))
+            else retWeek.push(...Array(end + 1 - start).fill(start).map((x, y) => x + y).filter(v => {return v % 2 != 0    }))
+        })
+        return retWeek
     }
+    Str = Str.replace(/\(|\)|\{|\}|\||第/g, "").replace(/到/g, "-")
+    let reWeek = [];
+    let week1 = []
+    while (Str.search(/周/) != -1) {
+        let index = Str.search(/周/)
+        if (Str[index + 1] == '单' || Str[index + 1] == '双') {
+            week1.push(Str.slice(0, index + 2).replace("周", ""));
+            index += 2
+        } else {
+            week1.push(Str.slice(0, index + 1).replace("周", ""));
+            index += 1
+        }
+
+        Str = Str.slice(index)
+        index = Str.search(/\d/)
+        if (index != -1) Str = Str.slice(index)
+        else Str = ""
+
+    }
+    if (Str.length != 0) week1.push(Str)
+
+    week1.forEach(v => {
+        console.log(v)
+        if (v.slice(-1) == "双") reWeek.push(...range(v, 2))
+        else if (v.slice(-1) == "单") reWeek.push(...range(v, 3))
+        else reWeek.push(...range(v+"全", 1))
+    });
+    return reWeek;
+}
+function resolveCourseConflicts(result) {
+    function pdSection(or, inn) {
+        // console.log(or,inn)
+        or.sort(function (a, b) {
+            return a.section - b.section
+        })
+        inn.sort(function (a, b) {
+            return a.section - b.section
+        })
+        if (JSON.stringify(or) === JSON.stringify(inn)) {
+            return true;
+        } else return false;
+    }
+//将课拆成单节，并去重
+    let allResultSet = new Set()
+    result.forEach(singleCourse => {
+        singleCourse.weeks.forEach(week => {
+            singleCourse.sections.forEach(section => {
+                let course = {sections: [], weeks: []}
+                course.name = singleCourse.name;
+                course.teacher = singleCourse.teacher;
+                course.position = singleCourse.position;
+                course.day = singleCourse.day;
+                course.weeks.push(week);
+                course.sections.push(section)
+                allResultSet.add(JSON.stringify(course))
+            })
+        })
+    })
+    let allResult = JSON.parse("[" + Array.from(allResultSet).toString() + "]").sort(function (b, e) {
+        return b.day - e.day
+    })
+
+    //将冲突的课程进行合并
+    let contractResult = [];
+    while (allResult.length !== 0) {
+        let firstCourse = allResult.shift();
+        if (firstCourse == undefined) continue;
+        let weekTag = firstCourse.day
+
+        for (let i = 0; allResult[i] !== undefined && weekTag === allResult[i].day; i++) {
+            if (firstCourse.weeks[0] === allResult[i].weeks[0]) {
+                if (firstCourse.sections[0].section === allResult[i].sections[0].section) {
+                    let index = firstCourse.name.split('|').indexOf(allResult[i].name);
+                    if (index === -1) {
+                        firstCourse.name += "|" + allResult[i].name;
+                        firstCourse.teacher += "|" + allResult[i].teacher;
+                        firstCourse.position += "|" + allResult[i].position;
+                        firstCourse.position = firstCourse.position.replace(/undefined/g,'')
+                        allResult.splice(i,1);
+                        i--;
+                    } else {
+                        let teacher = firstCourse.teacher.split("|");
+                        let position = firstCourse.position.split("|");
+                        teacher[index] = teacher[index] === allResult[i].teacher ? teacher[index] : teacher[index] + "," + allResult[i].teacher;
+                        position[index] = position[index] === allResult[i].position ? position[index] : position[index] + "," + allResult[i].position;
+                        firstCourse.teacher = teacher.join("|");
+                        firstCourse.position = position.join("|");
+                        firstCourse.position = firstCourse.position.replace(/undefined/g,'')
+                        allResult.splice(i,1);
+                        i--;
+                    }
+
+                }
+            }
+        }
+        contractResult.push(firstCourse);
+    }
+    //将每一天内的课程进行合并
+    let finallyResult = []
+    contractResult = contractResult.sort(function (a,b){return a.day-b.day})
+    while (contractResult.length != 0) {
+        let firstCourse = contractResult.shift();
+        if (firstCourse == undefined) continue;
+        let weekTag = firstCourse.day;
+        for (let i = 0; contractResult[i] !== undefined && weekTag === contractResult[i].day; i++) {
+            if (firstCourse.weeks[0] === contractResult[i].weeks[0] && firstCourse.name === contractResult[i].name && firstCourse.position === contractResult[i].position && firstCourse.teacher === contractResult[i].teacher) {
+                if(firstCourse.sections[firstCourse.sections.length-1].section+1===contractResult[i].sections[0].section){
+                    firstCourse.sections.push(contractResult[i].sections[0]);
+                    contractResult.splice(i,1);
+                    i--;
+                }
+                else break
+                // delete (contractResult[i])
+            }
+        }
+        finallyResult.push(firstCourse);
+    }
+    //将课程的周次进行合并
+    contractResult = JSON.parse(JSON.stringify(finallyResult));
+    finallyResult.length = 0
+    contractResult = contractResult.sort(function (a,b){return a.day-b.day})
+    while (contractResult.length != 0) {
+        let firstCourse = contractResult.shift();
+        if (firstCourse == undefined) continue;
+        let weekTag = firstCourse.day;
+        for (let i = 0; contractResult[i] !== undefined && weekTag === contractResult[i].day; i++) {
+              if (pdSection(firstCourse.sections, contractResult[i].sections) && firstCourse.name === contractResult[i].name && firstCourse.position === contractResult[i].position && firstCourse.teacher === contractResult[i].teacher) {
+                firstCourse.weeks.push(contractResult[i].weeks[0]);
+                contractResult.splice(i,1);
+                i--;
+            }
+        }
+        finallyResult.push(firstCourse);
+    }
+    console.log(finallyResult)
+    return finallyResult;
+}
     
     
 function scheduleHtmlParser(html) {
@@ -61,34 +159,52 @@ function scheduleHtmlParser(html) {
     let $ = cheerio.load(html, {decodeEntities: false});
     let result = []
     let hang = $('#kbtable tr')
-    for (let i = 1 ; i< hang.length-1 ;i++){
-
-        let lie = $('td',hang.eq(i));
-        for (let j = 0 ; j< lie.length;j++){
-            let kc = lie.eq(j).children('div[style!="display: none;"]');
-             if (kc.text().length<=6){
-                   continue;
-             }
-              let kcco = kc.html().split(/-{2,}/);
-            for (let k = 0 ; k< kcco.length ; k++){
-                 let re = {weeks:[],sections:[]} ; 
-
-                  re.name = kcco[k].replace(/<[^>]+>/g,"?").split('?').filter(function (s) {return s && s.trim();})[0];
-                  re.name = re.name.length < 50 ? re.name : re.name.substring(0,46)+"...";
-                  re.position = kc.find('font[title="教室"]').eq(k).text();
-                  re.teacher = kc.find('font[title="老师"]').eq(k).text();
-                  re.teacher = re.teacher.length < 50 ? re.teacher : re.teacher.substring(0,46)+"...";
-                   re.weeks = getWeeks(kc.find('font[title="周次(节次)"]').eq(k).text());
-                  re.day = j+1;
-                   for (jie = i*2-1; jie <= i*2; jie++){
-                       let sec = {};
-                       sec.section = jie;
-                       re.sections.push(sec);
-                   }
+    let message="";
+    try{
+        for (let i = 1 ; i< hang.length-1 ;i++){
+            let lie = $('td',hang.eq(i));
+            for (let j = 0 ; j< lie.length;j++){
+                 let kc = lie.eq(j).children('div[class="kbcontent"]');
+                 if (kc.text().length<=6){
+                       continue;
+                 }
+                  let kcco = kc.html().split(/-{3,}/);
+                  kcco.forEach(con=>{
+                    let re = {weeks: [], sections: []};
+                    console.log(con)
+                    $ = cheerio.load(con, {decodeEntities: false})
+                    console.log($.html())
+                    re.day = j + 1;
+                    re.name = $('div').length == 0 ? $('body').html().split(/<br>/).filter(f => {
+                        return f.trim()
+                    })[0] : $('div').eq(0).html().split(/<br>/).filter(f => {
+                        return f.trim()
+                    })[0];
+                    re.teacher = $('font[title="老师"],[title="教师"]').text().replace(/无职称|（高校）/g, "");
+                    re.position = $('font[title="教室"]').text()
+                    re.weeks = getWeeks($('font[title="周次(节次)"]').text().split("[")[0]);
+                  // re.sections = getSection($('font[title="周次(节次)"]').text().match(/(?<=\[).*?(?=\])/g)[0])
+                      for (jie = i*2-1; jie <= i*2; jie++){
+                          let sec = {};
+                          sec.section = jie;
+                          re.sections.push(sec);
+                     }
+                    console.log(re)
                     result.push(re);
+
+                  })
+
+                }    
+
             }
-               
-            }    
+          if(result.length==0) message ="未获取到课表" 
+          else result = resolveCourseConflicts(result)
+        }catch(err){
+            message = err.message.slice(0,50)
+        }
+        if(message.length!=0) {
+            result.length==0
+            result.push({name:"遇到错误，请加qq：357914968进行反馈",teacher:"萧萧",position:message,day:1,weeks:[1],sections:[{section:1},{section:2},{section:3}]})
         }
     let sects = [{
         section:1,
@@ -139,5 +255,5 @@ function scheduleHtmlParser(html) {
     console.log(result)
     return { courseInfos: result,
             sectionTimes: sects
-     }
+           }
 }
