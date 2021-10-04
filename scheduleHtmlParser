@@ -204,7 +204,7 @@ function scheduleHtmlParser(html) {
         }
         if(message.length!=0) {
             result.length==0
-            result.push({name:"遇到错误，请加qq：357914968进行反馈",teacher:"萧萧",position:message,day:1,weeks:[1],sections:[{section:1},{section:2},{section:3}]})
+            result.push({name:"遇到错误，请加qq：xxxxxx进行反馈",teacher:"xxxx",position:message,day:1,weeks:[1],sections:[{section:1},{section:2},{section:3}]})
         }
     let sects = [{
         section:1,
