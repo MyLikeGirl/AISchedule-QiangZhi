@@ -1,8 +1,28 @@
+function request(tag,url,data)
+{
+    let ss = "";
+    let xhr = new XMLHttpRequest();
+    xhr.onreadystatechange = function() {
+        console.log(xhr.readyState+" "+xhr.status)
+        if (xhr.readyState == 4 && xhr.status == 200 || xhr.status == 304) {
+            ss = xhr.responseText
+        }
+
+    };
+    xhr.open(tag, url,false);
+    xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
+    xhr.send(data)
+    return ss;
+}
 function scheduleHtmlProvider(iframeContent = "", frameContent = "", dom = document) {
     //除函数名外都可编辑
-    //以下为示例，您可以完全重写或在此基础上更改
-                                
-const tab = document.getElementById("kbtable").outerHTML;
+    //以下为示例，您可以完全重写或在此基础上更改                               
+    try{
+       return dom.getElementById("kbtable").outerHTML;    
+    }catch(e){
+       let html = request("get","/jsxsd/xskb/xskb_list.do",null)
+       dom = new DOMParser().parseFromString(html,"text/html")
+        return dom.getElementById("kbtable").outerHTML;    
+    }
 
-return "<html><body>" + tab + "<body></html>"  ;
 }
